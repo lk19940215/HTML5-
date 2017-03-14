@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Canvas Martrix</title>
+	</head>
+	<body>
+		<canvas id="introCanvas">
+			<p> you browser not support Canvas!</p>
+		</canvas>
+		<script>
+			var canvas = document.getElementById("introCanvas");
+			if (canvas.getContext) {
+				var ctx = canvas.getContext("2d");
+				w = canvas.width = window.innerWidth;
+				h = canvas.height = window.innerHeight;
+				
+				var clearColor = "rgba( 0, 0, 0, .1)",
+					wordColor = "#d2b48c",
+					words = "0123456789qwertyuiopasdfghjklzxcvbnm,./;'\[]QWERTUIOP{}ASDFGHJKL:ZXCVBNM<>?!@#$%^*()_+-=`~",
+					wordsArr = words.split(""),
+					font_size = 16,
+					clumns = w / font_size,
+					drops = [];
+					
+				for (var i = 0; i < clumns; i++) {
+					drops[i] = 1;
+				}
+				
+				(function drawFrame() {
+					window.requestAnimationFrame( drawFrame, canvas);
+					ctx.fillStyle = clearColor;
+					ctx.fillRect( 0, 0, w, h);
+					draw();
+				})();
+				
+				function draw(){
+					ctx.save();
+					ctx.fillStyle = wordColor;
+					ctx.font = font_size + "px arial";
+					
+					for (var i = 0; i < drops.length; i++) {
+						var text = wordsArr[Math.floor( Math.random() * wordsArr.length)];
+							ctx.fillText(text, i * font_size, drops[i] * font_size);
+							if ( drops[i] * font_size > h && Math.random() > 0.98) {
+								drops[i] = 0;
+							}
+							drops[i]++;
+					}
+					ctx.restore();
+				}
+			}
+		</script>
+	</body>
+</html>

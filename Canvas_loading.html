@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Canvas loading</title>
+</head>
+
+<body>
+	<canvas id="introCanvas">
+			<p>you browser not support Canvas!</p>
+		</canvas>
+	<script>
+		window.onload = function() {
+			var canvas = document.getElementById( "introCanvas" ),
+				X = window.innerWidth / 2,
+				Y = window.innerHeight / 2;
+			canvas.width = X * 2;
+			canvas.height = Y * 2;
+			if ( canvas.getContext ) {
+
+				var ctx = canvas.getContext( "2d" );
+				speed = 0.1;
+				radom = 2 * Math.PI / 100;
+				ctx.translate( X, Y );
+
+				//			采用setInterval
+				//			var i = 0;
+				//			var timer = setInterval(function(){
+				//					bottom();
+				//				blue(i);
+				//				if (i > 100) {
+				//					i = 0;
+				//				}
+				//				text(i);
+				//				i++;
+				//			},1000*speed);
+				//window API
+				( function drawFrame() {
+					window.requestAnimationFrame( drawFrame );
+					bottom();
+					blue( speed );
+					text( speed );
+					if ( speed > 100 ) {
+						speed = 0;
+					}
+					speed += 0.1;
+				} )()
+			}
+
+			function blue( speed ) {
+				ctx.save();
+				ctx.beginPath();
+				ctx.strokeStyle = "#49f";
+				ctx.shadowBlur = 5;
+				ctx.lineWidth = 10;
+				ctx.arc( 0, 0, 150, -Math.PI / 2, -Math.PI / 2 + speed * radom, false );
+				ctx.stroke();
+				ctx.restore();
+			}
+
+			function bottom() {
+
+				ctx.save();
+				ctx.beginPath();
+				ctx.strokeStyle = "#a5def1";
+				ctx.shadowBlur = 5;
+				ctx.lineWidth = 10;
+				ctx.arc( 0, 0, 150, 0, 2 * Math.PI, false );
+				ctx.stroke();
+				ctx.closePath();
+				ctx.restore();
+			}
+
+			function text( speed ) {
+
+				ctx.save();
+				ctx.clearRect( -50, -10, 100, 100 );
+				ctx.beginPath();
+				ctx.fillStyle = "#42f";
+				ctx.font = "25px Microsoft yahei";
+				ctx.textAlign = "center";
+				ctx.textBaseline = "top";
+				ctx.strokeStyle = "#a5def1";
+				ctx.fillText( speed.toFixed( 0 ) + "%", 0, 0 );
+				ctx.restore();
+			}
+		};
+	</script>
+</body>
+
+</html>
