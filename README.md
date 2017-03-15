@@ -6,7 +6,7 @@
                arcsin(x / r) = Math.asin(x / r) * (180 / Math.PI),
                arccos(x / r) = Math.acos(x / r) * (180 / Math.PI),
 
-
+!!!!!!!!!!!!!!最终的公式：Math.atan2(dy, dx);
 
 
 
