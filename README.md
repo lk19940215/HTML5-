@@ -33,7 +33,26 @@
                dy = y2 - y1;
                dist = Math.sqrt(dx*dx + dy*dy);
 
+               
+               //任意方向速度
+               vx = speed * Math.cos(angle);
+               vy = speed * Math.sin(angle);
 
+               //任意方向加速度
+               ax = force * Math.cos(angle);
+               ay = force * Math.xin(angle);
+
+               //改变速度
+               vx += ax;
+               vx += ay;
+
+               //改变位置
+               object.x += vx;
+               object.y += vy;
+
+               
+               
+               
 使用HTML5的Canvas标签，绘制了一些有趣，好玩的实例；包括，一个最爱的黑客帝国的经典画面，一个树枝图；
   另外，编写了两个实际开发中可能使用到的 图片裁剪、loading加载的实例；还包括。。。。
  见证Canvas熟练的增长！！
