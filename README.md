@@ -1,8 +1,10 @@
 
 注意：在Canvas中，y轴正方向朝下；
      且Canvas中，采用弧度制；故
+     
                sin(α) = Math.sin(α * Math.PI / 180),
                cos(α) = Math.cos(α * Math.PI / 180),
+               
                arcsin(x / r) = Math.asin(x / r) * (180 / Math.PI),
                arccos(x / r) = Math.acos(x / r) * (180 / Math.PI),
 
