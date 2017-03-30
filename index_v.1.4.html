@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title></title>
+		<style>
+			html,
+			body{
+				width: 100%;
+				height: 100%;
+			}
+			#test {
+				position: fixed;
+				top:25%;
+				left: 25%;
+				width: 50%;
+				height: 50%;
+			}
+		</style>
+	</head>
+	<body>
+		<div id = "test">
+			
+			
+		</div>
+		<script>
+			/*2017-3-27
+			 * 代码开始插件化
+			 * 尽量减小配置，优化使用；
+			 * v1.1
+			 * */
+			
+			/*2017-3-28
+			 * 构建直方图构造函数,以及原型方法；
+			 * 实现动画效果，颜色渐变等
+			 * v1.2
+			 * */
+		
+			/*2017-3-29；
+			 *坐标轴重绘，走了弯路，y取相反值即可，不必旋转坐标系；(上午)
+			 * 宽度自适应,字体居中等;
+			 * 
+			 * (待完成优化：1.坐标轴缩放（根据容器大小缩放数据）；2：根据数据，决定间隔大小)
+			 * 
+			 * ：坐标轴缩放，找到思路；未完美优化    （思路可能出错）
+			 * 思路一：用于scale；
+			 * 思路二：配置一个缩放比例系数i;（所有的与坐标相关的参数，全部乘以该系数）
+			 * 
+			 * v1.3
+			 * */
+			
+			/*2017-3-30
+			 * 照思路，开始优化；
+			 * 思路一：运用ctx.scale(),无法完美适应各个情况下的Y轴缩放；
+			 * 思路二：通过配置一个缩放比例系数,根据目前的情况,处理效果比较好；（后续使用此方法）；
+			 * 下午：将坐标缩放过程产生的代码，进行优化；
+			 * 		问题一：height接口暴露出来，效果出现差错；        解决：options.height 可配置
+			 * 
+			 * 后续优化方向：数据传入，使用二维数组的数据。    配置方法分离代码；
+			 *此时版本：v.1.3.1
+			 *  */
+			
+			
+			
+			
+			
+			/*
+			 *遗留问题一，是否使用setTimeout代替setInterval 
+			 * 	    问题二：endX接口暴露了出去,与容器最大的宽度，存在冲突。需待改进
+			 * */
+			
+			;(function (window,document) {
+				
+				var __DEFAULT__ = {			//默认参数
+					HeightArr : [82,154,268,210,370],		//直方图高度数据
+					eachSpacing : 0,						//每个直方图区域的大小（不需赋值，自动计算）
+					width: 20,								//直方图宽度			
+					height : 50,							//Y轴整体上，最高段处所代表的原始缩放距离
+					startX : 0,								//X轴起点（文字开始绘制坐标点）
+					endX : 500,								//X轴末端点
+					startY : 0,								//Y轴起始点
+					endY : 610,								//坐标最高点
+					xAis:["2016-06","2016-07","2016-08", '2016-09', "2016-10", "2016-11", "2016-12"],	//横坐标下方显示文字
+					container:document.body 				//canvas绘制的容器
+				};
+				
+				
+				function Rectangle( x, y, w, h, Txt, startH){	//x,y,w,h为绘制矩形的常规参数;startH为动画参数.
+					this.x = x;
+					this.y = y;
+					this.w = w;
+					this.h = h;
+					this.Txt = Txt;
+					this.startH = startH || 0;
+				}
+				
+				Rectangle.prototype = {
+					process: function(ctx){					//事件调用
+						this.draw(ctx);
+					},
+					draw: function(ctx){
+						var startH = this.startH,
+							x = this.x,
+							y = this.y,
+							h = this.h,
+							w = this.w,
+							Txt = this.Txt,
+							_this = this;
+						var timer = setInterval(function(){
+							var speed = (-h - startH)* 0.2;	//
+							if ( startH <= -(h + 1)) {			//减一 的原因，是为了停止动画，减少资源占用；取反是坐标系正方向不同
+								ctx.save();
+								ctx.fillStyle = _this.gradientF(ctx, x, y, x + w, y - startH);
+								ctx.fillRect( x, y, w, -startH);
+								startH += Math.ceil(speed);
+								ctx.restore();
+							}else{
+								_this.text(ctx, x, -h, w, Txt);		//绘制文字；
+								clearInterval(timer);			//回收定时器
+								console.log("Animation stop");
+							}
+						}, 40);
+					},
+					gradientF: function(ctx, x, y, w, h){		//颜色渐变函数
+						var gradient = ctx.createLinearGradient( x, y, w, h);
+							gradient.addColorStop(1, "#1E90FF");		//#4f6092
+							gradient.addColorStop(0, "#008b8b");		//#37a
+						return gradient;
+					},
+					text: function(ctx, x, h, w, Txt){
+						var spacing = Math.floor(w - ctx.measureText(Txt).width) / 2;
+						ctx.save();
+//						ctx.fillStyle = this.gradientF(ctx, x, h, x + w, h+ 14);		//字体颜色渐变  14为字体px单位；
+						ctx.textAlign = "start";
+						ctx.textBaseline = "bottom";
+						ctx.fillText( Txt, x + spacing, -h);		//使文字居中显示
+						ctx.restore();
+					}
+					
+				};
+				
+				var DrawHistogram = function(options){		//插件定义
+					
+					this.options = options || {};			
+					
+					if (!(this instanceof DrawHistogram)) return new DrawHistogram(options);	//使this对应该插件对象，而不是window；
+					
+					this.extend(__DEFAULT__, this.options);	//配置默认项，（用户输入的取代，没配置的使用默认值）;
+					
+					if (this.options.HeightArr.length != this.options.xAis.length) {
+						alert("数据个数不相等");				//数据,文字个数应该对应
+						return;
+					}
+					this.init();							//初始化函数
+					
+					this.fillTextStyle();					//
+					
+					this.coordinateSystem();				//绘制坐标轴
+					
+					this.histogramDraw();					//绘制直方图
+					
+				};
+				
+				DrawHistogram.prototype = {		
+					
+					init: function(){
+						
+						this.canvas = document.createElement("canvas");
+						this.options.container.appendChild(this.canvas);		//创建一个canvas元素，并放入DOM中；
+						
+						if (!this.canvas.getContext) {
+							this.error();
+							return;
+						}
+						
+						this.ctx = this.canvas.getContext("2d");
+						
+						var canvas = this.canvas,
+							ctx = this.ctx,
+							options = this.options,
+							max;
+							
+						options.W = 
+							canvas.width = 
+								Math.max(options.container.scrollWidth, options.container.clientWidth);
+						options.H = 
+							canvas.height = 
+								Math.max(options.container.scrollHeight, options.container.clientHeight);
+						console.log("html,body 最好都设置height为100%");
+						
+						
+						options.eachSpacing = Math.floor( Math.min(options.W * 9 / 10, options.endX) / options.xAis.length);		//每一个区段的间隔大小		（需修改）
+						
+						max = Math.max.apply(null,options.HeightArr);				//查找输入数据中的最大值，来配置坐标Y最高段处的大小
+//						options.height = Math.ceil((max / options.HeightArr.length) / 100) * 100;
+						
+						options.W = Math.min( options.W, options.endX);
+						options.H = Math.min( options.H, options.endY);
+						
+						this.iY = 0;		//缩放比例
+						
+						this.iY = (max / options.height );  //(options.height * 5)
+						
+						if (this.iY >= 1 &&  this.iY < 10 ) {
+							this.iY = Math.floor(this.iY) + 1;
+						}else if(this.iY < 1) {
+							this.iY = 1;
+						}else{
+							this.iY = Math.ceil(this.iY / 10) * 10;
+						}
+						
+						//配置坐标（0,0）原点在容器内的位置
+						options.originX = options.W / 10;	
+						options.originY = options.H * 19 / 20;
+						
+						this.oringY = Math.ceil(options.originY * 4 / 25);	//每一段虚线间隔，在坐标轴上代表的高度；
+						ctx.translate(options.originX, options.originY);	//转换坐标系的原点
+						
+						/*转换坐标轴
+						 *因为在浏览器中的坐标系，与数学中的直角坐标系不同；
+						 *浏览器中，初始时，Y轴正方向向下，X轴正方向向右；顶点原点在左上角；
+						 *所以要重置坐标原点;之后，y取值，一定要取相反值*/
+					},
+					
+					coordinateSystem: function(){
+						var options = this.options,
+							ctx = this.ctx,
+							textArr = [];		//用于绘制横坐标文字;
+						
+						ctx.save();
+						ctx.beginPath();	
+						/*根据初始数值，绘制坐标系；*/
+						ctx.moveTo(0,options.H / 20);						//此时坐标系原点已经变更；
+						ctx.lineTo(0,-options.endY);			//绘制X轴
+						ctx.moveTo(-options.W / 20,0);
+						ctx.lineTo(options.endX, 0);			//绘制Y轴
+						
+						/*画虚线*/
+						for (var i = 1; i <= 5; i ++) {
+							this.drawDasheLine(ctx, 0, -i*this.oringY, options.endX, -i*this.oringY);
+							ctx.save();					//此处可简化
+							ctx.translate(-20, -i*this.oringY);
+							ctx.fillText(i*options.height*this.iY/5, 0, 0);
+							ctx.restore();
+						}
+						
+						/*横坐标下方文字*/
+						options.xAis.forEach(function(item, index){
+							textArr.push( options.startX + index * options.eachSpacing);
+						});
+						textArr.push(options.endX);
+						ctx.save();
+						
+						textArr.forEach(function(item, index){
+							ctx.moveTo(item, 0);
+							ctx.lineTo(item, 10);
+						})
+						
+						options.xAis.forEach(function(item, index){
+							var textW = ctx.measureText(item).width,
+								spacing;
+								
+							spacing = Math.floor(options.eachSpacing - textW) / 2;
+							ctx.font = "14px Microsoft yahei";
+							ctx.textAlign = "start";
+							ctx.textBaseline = "bottom";
+							ctx.fillText(item, textArr[index] + spacing, 20);
+						});
+						/*横坐标下方文字*/
+						
+						ctx.closePath();
+						ctx.stroke();							//颜色填充
+						/*根据初始数值，绘制坐标系；*/
+						
+						
+						ctx.restore();
+					},
+					
+					histogramDraw: function(){		//
+						var ctx = this.ctx,
+							options = this.options;
+						
+						var processArr = [],
+							spacing;
+						/*绘制直方图*/
+						spacing = (options.eachSpacing - options.width) / 2;
+						ctx.save();
+						if (!options.HeightArr[0].length) {
+							console.log(1)
+							for (var i = 0; i < options.HeightArr.length; i++) {
+								var height = -Math.ceil(options.HeightArr[i] * this.oringY / (this.iY * options.height / 5));		//注意负号 不可省略
+								var rect = new Rectangle(i * options.eachSpacing + spacing, -1, options.width, height, options.HeightArr[i]);
+								processArr.push(rect);
+							}
+						}else{
+							for (var i = 0; i < options.HeightArr.length; i++) {
+								var height = -Math.ceil(options.HeightArr[i] * this.oringY / (this.iY * options.height / 5));		//注意负号 不可省略
+								for (var j in options.HeightArr[i]) {
+									var rect = new Rectangle(i * options.eachSpacing + spacing, -1, options.width, height, options.HeightArr[i][j]);
+									processArr.push(rect);
+								}
+								
+							}
+						}
+						
+						for (var b in processArr) {
+							processArr[b].process(ctx);
+						}
+						
+						ctx.restore();
+//						this.Text();		//勿删      绘制文字 （另一种，是在Rectangle里，绘制）
+					},
+					
+					Text: function(){		//使用ctx.measureText()使文字居中  （未添加）
+						var ctx = this.ctx;
+						ctx.textAlign = "start";
+						ctx.textBaseline = "bottom";
+						ctx.save();
+						for (var i = 0; i < this.options.HeightArr.length; i++) {  
+							ctx.fillText( this.options.HeightArr[i], (i + 1) * 30 , -this.options.HeightArr[i]);
+						}
+						ctx.restore();
+					},
+					
+					fillTextStyle: function(){
+						var ctx = this.ctx;
+						ctx.fillStyle = "#37a";			//直方图填充样式
+						ctx.strokeStyle = "#000";		//直方图绘制边框样式
+						ctx.font = "15px Microsoft yahei";
+						ctx.textBaseline = "middle";
+						ctx.textAlign = "center";
+					},
+					
+					extend: function(obj1, obj2){
+						for (var pro in obj1) {
+							if ( !obj2[pro] ) {
+								obj2[pro] = obj1[pro];
+							}
+						}
+					},
+					error: function(){
+						this.canvas.innerHTML = "You browser not support Canvas!";
+					},
+					
+					drawDasheLine: function(ctx, x1, y1, x2, y2, dashLength){   //画虚线的函数
+						var deltaX = x2 - x1,
+							deltaY = y2 - y1;
+						dashLength = dashLength === undefined ? 6 : dashLength;
+						var numDashes = Math.floor( Math.sqrt( deltaX * deltaX + deltaY * deltaY) / dashLength);
+						for (var i = 0; i < numDashes; ++i) {
+							ctx[ i % 2 === 0 ? 'moveTo': 'lineTo']( x1 + ( deltaX / numDashes) * i, y1 + ( deltaY / numDashes) * i);
+						}
+						ctx.stroke();
+					},
+				};
+				
+				//暴露插件接口
+				window.DrawHistogram = DrawHistogram;
+			}(window,document));
+			
+		</script>
+		<script>
+			DrawHistogram({
+				HeightArr : [1,2,3,4,5,6,7]//[10,16,49,40,24,34,5]//[101,870,3056,4095,2023,1807,2890]//[295,106,201,849,356,495,401]  //
+				,
+				container : document.getElementById("test")
+//				,
+//				xAis:["周一", '周二', "周三", "周四", "周五","周六","周日"]//
+			});
+		</script>
+	</body>
+</html>
