@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+
+		<meta charset="utf-8">
+		<title>123</title>
+		<style>
+			html,
+			body {
+				width: 100%;
+				height: 100%;
+			}
+			
+			#test {
+				position: fixed;
+				top: 25%;
+				left: 25%;
+				width: 50%;
+				height: 50%;
+				border: 1px dashed #ccc;
+			}
+			
+			canvas {
+				margin: 10px;
+				border: 1px solid #000;
+			}
+		</style>
+	</head>
+
+	<body>
+		<!--<div id="test">-->
+		<!--</div>-->
+		<script>
+			;
+			(function() {
+				function decimalAdjust(type, value, exp) {
+					if(typeof exp === 'undefined' || +exp === 0) {
+						return Math[type](value);
+					}
+					value = +value;
+					exp = +exp;
+					// If the value is not a number or the exp is not an integer...
+					if(isNaN(value) || !(typeof exp === 'number' && exp % 1 === 0)) {
+						return NaN;
+					}
+					value = value.toString().split('e');
+					value = Math[type](+(value[0] + 'e' + (value[1] ? (+value[1] - exp) : -exp)));
+					value = value.toString().split('e');
+
+					return +(value[0] + 'e' + (value[1] ? (+value[1] + exp) : exp));
+				}
+
+				// Decimal ceil
+				if(!Math.ceil10) {
+					Math.ceil10 = function(value, exp) {
+						return decimalAdjust('ceil', value, exp);
+					};
+				}
+			})();
+			(function(window, document) {
+
+				var __DEFAULT__ = { //默认参数
+					dataArr: [82, 154, 268, 210, 370], //直方图高度数据
+					xAis: ["2016-06", "2016-07", "2016-08", '2016-09', "2016-10"], // "2016-11", "2016-12"], //横坐标下方显示文字
+					container: document.body, //canvas绘制的容器
+					eachSpacing: 0, //每个直方图区域的大小（不需赋值，自动计算）
+					width: 20, //直方图宽度
+
+					height: 20, //Y轴整体上，最高段处所代表的原始缩放距离
+					startX: 0, //X轴起点（文字开始绘制坐标点）
+					endX: 400, //X轴末端点
+					startY: 0, //Y轴起始点
+					endY: 610 //坐标最高点
+				};
+				
+				
+				function Rectangle( x, y, w, h, iY, startH){	//x,y,w,h为绘制矩形的常规参数;startH为动画参数.
+					this.x = x;
+					this.y = y;
+					this.w = w;
+					this.h = h;
+					this.iY = iY;
+					this.startH = startH || 0;
+				}
+				
+				Rectangle.prototype = {
+					process: function(ctx){					//事件调用
+						this.draw(ctx);
+					},
+					draw: function(ctx){
+						var startH = this.startH,
+							x = this.x,
+							y = this.y,
+							h = this.h,
+							w = this.w,
+							iY = this.iY,
+							_this = this;
+							
+						var timer = setTimeout(function drawRect() {
+							var speed = (h - startH) * 0.2;
+							if(startH < h) {
+								
+								ctx.save();
+								ctx.scale(1, iY);
+								startH = Math.ceil(startH);
+								ctx.fillStyle = _this.gradientF(ctx, x, y, x + w, y - startH);
+								ctx.fillRect(x, y, w, -startH);
+								ctx.restore();
+								startH += speed;
+								setTimeout(drawRect, 30);
+							}else{
+								
+								_this.text(ctx, x, -h, w, iY);		//绘制文字；
+								clearTimeout(timer);
+								console.log("Animation stop");
+//								_this.clearRectangle(ctx, x, y, w, h, iY);
+							}
+						}, 30);
+						
+					},
+					gradientF: function(ctx, x, y, w, h){		//颜色渐变函数 （后续优化为：颜色可配置）
+						var gradient = ctx.createLinearGradient( x, y, w, h);
+							gradient.addColorStop(1, "#1E90FF");		//#4f6092
+							gradient.addColorStop(0, "#008b8b");		//#37a
+						return gradient;
+					},
+					text: function(ctx, x, h, w, iY){
+						var spacing = Math.ceil(w - ctx.measureText(-h).width) * 0.5;
+						ctx.save();
+						ctx.textAlign = "start";
+						ctx.textBaseline = "bottom";
+						ctx.fillText( -h, x + spacing, iY * h);		//使文字居中显示
+						ctx.restore();
+					},
+					
+					clearRectangle: function(ctx, x, y, w, h, iY){
+						var target = 0,
+							_this = this;
+						
+						var timer = setTimeout(function clearR() {
+							var speed = 0.2;
+							if(target < w) {
+								ctx.save();
+								ctx.scale(1,iY);
+								w = Math.floor(w);
+								ctx.fillStyle = "white";
+								ctx.fillRect(x, y, w, -h);
+								ctx.fill();
+								ctx.restore();
+								w -= speed;
+								console.log(w)
+								setTimeout(clearR, 100);
+							}else{
+//								_this.text(ctx, x, -h, w, iY);		//绘制文字；
+								clearTimeout(timer);
+								console.log("clear Animation stop");
+							}
+						}, 100);
+					}
+				};
+				
+				var DrawHistogram = function(options) { //插件定义
+
+					if(!(this instanceof DrawHistogram)) return new DrawHistogram(options);
+
+					this.options = options || {};
+
+					this.extend(this.options, __DEFAULT__); //配置默认项，（用户输入的取代，没配置的使用默认值）;
+
+					if(this.options.dataArr.length != this.options.xAis.length) {
+						alert("数据个数不相等"); //数据,文字个数应该对应
+						return;
+					}
+
+					this.process();
+				};
+
+				DrawHistogram.prototype = {
+
+					extend: function(obj1, obj2) {
+						for(var pro in obj2) {
+							if(!obj1[pro]) {
+								obj1[pro] = obj2[pro];
+							}
+						}
+					},
+
+					process: function() {
+
+						this.init();
+
+						this.fillTextStyle(); //
+
+						this.cSys(); //绘制坐标轴
+
+						this.histogramDraw(); //绘制直方图
+//
+//						this.resize();
+
+					},
+
+					init: function() {
+						this.canvas = document.createElement("canvas");
+
+						this.options.container.appendChild(this.canvas); //创建一个canvas元素，并放入DOM中；
+
+						if(!this.canvas.getContext) {
+							this.error();
+							return;
+						}
+
+						this.ctx = this.canvas.getContext("2d");
+
+//						for(var i in this.options) {
+//							if(i == "dataArr" || i == "xAis") {
+//								this.defineReactive(this.options, i, this.options[i]);
+//							}
+//						}
+
+						var canvas = this.canvas,
+							ctx = this.ctx,
+							options = this.options,
+							max;
+
+						this.W =
+							canvas.width =
+							Math.max(options.container.scrollWidth, options.container.clientWidth) * 0.95;
+						this.H =
+							canvas.height =
+							Math.max(options.container.scrollHeight, options.container.clientHeight) * 0.95;
+
+						canvas.id = "drawHistogramCanvas";
+
+						console.log("html,body 最好都设置height为100%");
+
+						options.eachSpacing = Math.floor(this.W * 0.9 / options.xAis.length); //每一个区段的间隔大小		（需修改）
+
+						max = Math.max.apply(null, this.countArr(options.dataArr)); //查找输入数据中的最大值，来配置坐标Y最高段处的大小
+						console.log(max)
+
+//						this.W = Math.max(this.W, options.endX);
+//						this.H = Math.max(this.H, options.endY);
+
+						this.iY = 0; //缩放比例
+
+						this.iY = (this.H * 0.8) / this.acount(max);
+						console.log(this.iY)
+						
+						//配置坐标（0,0）原点在容器内的位置
+						this.originX = this.W * 0.1;
+						this.originY = this.H * 0.95;
+						
+						this.num = (this.acount(max) / 5); //不可省略
+		
+						this.oringY = this.H * 0.16; //不可省略
+						
+						ctx.translate(this.originX, this.originY); //转换坐标系的原点
+						
+					},
+
+					cSys: function(){
+						
+						var options = this.options,
+							ctx = this.ctx,
+							textArr = [];		//用于绘制横坐标文字;
+							
+						var textW = 0;
+						
+						ctx.save();
+						ctx.strokeStyle = "#000000";
+						ctx.beginPath();
+						ctx.moveTo(0, 0);
+						ctx.lineTo(0, -this.H * 0.8); // 乘以0.8是为了上方留出空挡
+		
+						ctx.moveTo(0, 0);
+						ctx.lineTo(this.W * 0.9, 0)
+						ctx.closePath();
+						ctx.stroke();
+						/*画虚线,IE10级以下,没有 setLineDash*/
+						if (ctx.setLineDash) {
+								for(var i = 1; i <= 5; i++) {
+								ctx.beginPath();
+								ctx.strokeStyle = "#c1c1c1";
+								ctx.setLineDash([5, 8])
+								ctx.moveTo(0, -i * this.oringY);
+								ctx.lineTo(this.W, -i * this.oringY);
+								
+								ctx.closePath();
+								ctx.stroke();
+								ctx.font = "14px Microsoft yahei";
+								ctx.textBaseline = "middle";
+								ctx.textAlign = "start";
+								textW = ctx.measureText(i * this.num).width;
+								ctx.fillText(i * this.num, -textW - 4, -i * this.oringY);
+							}
+						}else{
+							for (var i = 1; i <= 5; i ++) {
+								this.drawDasheLine(ctx, 0, -i*this.oringY, this.W * 0.9, -i*this.oringY);
+								ctx.font = "14px Microsoft yahei";
+								ctx.textBaseline = "middle";
+								ctx.textAlign = "start";
+								textW = ctx.measureText(i * this.num).width;
+								ctx.fillText(i * this.num, -textW - 4, -i * this.oringY);
+							}
+						}
+						/*画虚线*/
+						ctx.restore();
+						
+						/*横坐标下方文字*/
+						ctx.save();
+						options.xAis.forEach(function(item, index){
+							textArr.push( options.startX + index * options.eachSpacing);
+						});
+						textArr.push(Math.floor(this.W * 0.9));
+						
+						textArr.forEach(function(item, index){
+							ctx.beginPath();
+							ctx.moveTo(item, 0);
+							ctx.lineTo(item, 10);
+							ctx.closePath();
+							ctx.stroke();
+						});
+						
+						options.xAis.forEach(function(item, index){
+							var textW = ctx.measureText(item).width,
+								spacing;
+							spacing = Math.floor(options.eachSpacing - textW) / 2;
+							ctx.font = "14px Microsoft yahei";
+							ctx.textAlign = "start";
+							ctx.textBaseline = "bottom";
+							ctx.fillText(item, textArr[index] + spacing, 20);
+						});
+						/*横坐标下方文字*/
+						ctx.restore();
+					},
+					
+					histogramDraw: function(){		//
+						var ctx = this.ctx,
+							options = this.options;
+						
+						var processArr = [],
+							spacing;
+						
+						/*绘制直方图*/
+						spacing = (options.eachSpacing - options.width) / 2;
+						if (!options.dataArr[0].length) {
+							for (var i = 0; i < options.dataArr.length; i++) {
+								
+								var rect = new Rectangle(i * options.eachSpacing + spacing, 0, options.width, options.dataArr[i], this.iY);
+								processArr.push(rect);
+							}
+						}else{
+							console.log("数组单项为数组");
+							var newArr = this.countArr(options.dataArr);
+							for (var i = 0; i < options.dataArr.length; i++) {
+								for (var j = 0; j < options.dataArr[i].length; j++){
+									var item = newArr[i * options.dataArr[i].length + j],
+										spacing = ((options.eachSpacing - (options.width + 5) * options.dataArr[i].length - 5 ) / 2);
+									var rect = new Rectangle(i * options.eachSpacing + spacing + (options.width + 5) * j , 0, options.width, item, this.iY);		
+									processArr.push(rect);
+								}
+							}
+						}
+						for (var b in processArr) {
+							processArr[b].process(ctx);
+						}
+						
+					},
+					
+					defineReactive : function(obj, key, val){
+						var _this = this;
+						Object.defineProperty(obj, key,{
+							get: function(){
+								return val;
+							},
+							set: function(newVal){
+								val = newVal;
+								_this.update();
+							}
+						})
+					},
+					
+					fillTextStyle: function(){
+						var ctx = this.ctx;
+						ctx.fillStyle = "#37a";			//直方图填充样式
+						ctx.strokeStyle = "#000";		//直方图绘制边框样式
+						ctx.textBaseline = "middle";
+						ctx.textAlign = "center";
+					},
+					
+					error: function(){
+						this.canvas.innerHTML = "You browser not support Canvas!";
+					},
+					
+					countArr: function(array) {
+						var _this = this;
+						return array.reduce(function(acc, val) {
+							return acc.concat(Array.isArray(val) ? _this.countArr(val) : val);
+						}, []);
+					},
+
+					acount: function(num) {
+						var index = 0,x = num;
+						while(num > 10) {num = (num / 10);index++;}
+						if(x < 10) {
+							index++;
+						}else if(x > 1000) {
+							index--;
+						}
+						return Math.ceil10(x, index);
+					},
+
+					drawDasheLine: function(ctx, x1, y1, x2, y2, dashLength){   //IE10也不支持 setLineDash()API
+						var deltaX = x2 - x1,
+							deltaY = y2 - y1;
+						dashLength = dashLength === undefined ? 6 : dashLength;
+						var numDashes = Math.floor( Math.sqrt( deltaX * deltaX + deltaY * deltaY) / dashLength);
+						ctx.beginPath();
+						for (var i = 0; i < numDashes; ++i) {
+							ctx[ i % 2 === 0 ? 'moveTo': 'lineTo']( x1 + ( deltaX / numDashes) * i, y1 + ( deltaY / numDashes) * i);
+						}
+						ctx.closePath();
+						ctx.stroke();
+					}
+				}; //暴露插件接口
+				window.DrawHistogram = DrawHistogram;
+
+			})(window, document)
+		</script>
+		<script>
+			var h1 = DrawHistogram({
+				height: 15,
+				width: 10,
+				dataArr: [[101,203,301],[44,506,214],[780,80,14],[14,222],[101,267,298],[200,300],[333,225]] //[120,220,374,456,900] //,641,710]
+					/*[540, 390, 930, 110, 125] //
+					 * [1510,12,93,84,50]
+					 * [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16],[17,18,19,20]]
+					 * [[201,153,61],[440,306,614],[98,800,104],[104,260,222],[401,367,498]]
+					 * */
+					//				,
+					//				container : document.getElementById("test")
+					,
+				xAis: ["周一", '周二', "周三", "周四", "周五","周六","周日"]
+			});
+		</script>
+	</body>
+
+</html>
